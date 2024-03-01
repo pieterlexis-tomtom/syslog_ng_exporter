@@ -3,9 +3,13 @@ name: goreleaser
 on:
   pull_request:
   push:
+    tags:
+      - '*'
+    branches:
+      - main
 
 permissions:
-  contents: write
+  contents: write  # For Releases
 
 jobs:
   goreleaser:
@@ -17,7 +21,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
 
       - name: Build and test
         run: make test
