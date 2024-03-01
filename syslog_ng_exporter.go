@@ -175,14 +175,14 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 		slog.Debug("Successfully parsed STATS line", "stats", stat)
 
 		switch stat.objectType[0:4] {
-		case "src.":
+		case "src.", "sour":
 			switch stat.metric {
 			case "processed":
 				ch <- prometheus.MustNewConstMetric(e.srcProcessed, prometheus.CounterValue,
 					stat.value, stat.objectType, stat.id, stat.instance)
 			}
 
-		case "dst.":
+		case "dst.", "dest":
 			switch stat.metric {
 			case "dropped":
 				ch <- prometheus.MustNewConstMetric(e.dstDropped, prometheus.CounterValue,
