@@ -1,0 +1,40 @@
+name: goreleaser
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+
+      - name: Build and test
+        run: make test
+
+      - name: Run GoReleaser to build
+        uses: goreleaser/goreleaser-action@v5
+        if: ${{ ! startsWith(github.ref, 'refs/tags/') }}
+        with:
+          distribution: goreleaser
+          version: latest
+          args: build --snapshot --clean
+
+      - name: Run GoReleaser to release (on a tag)
+        uses: goreleaser/goreleaser-action@v5
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
