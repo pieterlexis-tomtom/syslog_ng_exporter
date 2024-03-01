@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	versionCollector "github.com/prometheus/client_golang/prometheus/collectors/version"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -30,6 +30,13 @@ var (
 	listeningAddress = app.Flag("telemetry.address", "Address on which to expose metrics.").Default(":9577").String()
 	metricsEndpoint  = app.Flag("telemetry.endpoint", "Path under which to expose metrics.").Default("/metrics").String()
 	socketPath       = app.Flag("socket.path", "Path to syslog-ng control socket.").Default("/var/lib/syslog-ng/syslog-ng.ctl").String()
+)
+
+var (
+	// Filled by goreleaser
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
 )
 
 type Exporter struct {
@@ -238,7 +245,7 @@ func main() {
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	if *showVersion {
-		fmt.Fprintln(os.Stdout, version.Print("syslog_ng_exporter"))
+		fmt.Fprintf(os.Stdout, "syslog_ng_exporter %s, build date %s, commit %s\n", version, date, commit)
 		os.Exit(0)
 	}
 
@@ -252,9 +259,9 @@ func main() {
 
 	exporter := NewExporter(*socketPath)
 	prometheus.MustRegister(exporter)
-	prometheus.MustRegister(version.NewCollector("syslog_ng_exporter"))
+	prometheus.MustRegister(versionCollector.NewCollector("syslog_ng_exporter"))
 
-	slog.Info("Starting syslog_ng_exporter", "version", version.Info(), "buildContext", version.BuildContext(), "listeningAddress", *listeningAddress, "metricsEndpoint", *metricsEndpoint)
+	slog.Info("Starting syslog_ng_exporter", "version", version, "listeningAddress", *listeningAddress, "metricsEndpoint", *metricsEndpoint)
 
 	http.Handle(*metricsEndpoint, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
