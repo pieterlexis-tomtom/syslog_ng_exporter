@@ -1,0 +1,56 @@
+# This is an example .goreleaser.yml file with some sensible defaults.
+# Make sure to check the documentation at https://goreleaser.com
+
+# The lines below are called `modelines`. See `:help modeline`
+# Feel free to remove those if you don't want/need to use them.
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+
+version: 1
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+    ldflags: >
+      -s -w
+      -X "github.com/prometheus/common/version.Version={{.Version}}"
+      -X "github.com/prometheus/common/version.Branch={{.Branch}}"
+      -X "github.com/prometheus/common/version.Revision={{.Commit}}"
+      -X "github.com/prometheus/common/version.BuildDate={{.Date}}"
+      -X "main.version={{.Version}}"
+      -X "main.date={{.Date}}"
+      -X "main.commit={{.Commit}}"
+
+archives:
+  - format: tar.gz
+    # this name template makes the OS and Arch compatible with the results of `uname`.
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+
+dockers:
+  - skip_push: true  # Don't actually push the docker image, just build it.
+    image_templates:
+      - syslog-ng-exporter:{{.Version}}
+
+checksum:
+  disable: false
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"

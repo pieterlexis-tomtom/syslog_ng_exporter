@@ -77,8 +77,8 @@ dst.file;d_auth#0;/var/log/secure;a;dropped;0
 dst.file;d_auth#0;/var/log/secure;a;processed;51
 dst.file;d_auth#0;/var/log/secure;a;stored;0
 .`
-	metricCountLevel1 = 11
-	metricCountLevel2 = 18
+	metricCountLevel1 = 20
+	metricCountLevel2 = 27
 )
 
 func acceptAndSend(sock net.Listener, response string) error {
