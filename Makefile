@@ -39,6 +39,6 @@ vet:
 
 build:
 	@echo ">> building binaries"
-	@$(GO) build
+	@CGO_ENABLED=0 $(GO) build
 
 .PHONY: all style format build test vet
