@@ -12,8 +12,8 @@ Help on flags:
                                 Path under which to expose metrics.
   --socket.path="/var/lib/syslog-ng/syslog-ng.ctl"
                                 Path to syslog-ng control socket.
-  --log.level="info"            Only log messages with the given severity or above. Valid levels: [debug, info, warn, error]
-  --log.format="logger:stderr"  Set the log target and format. Example: "logger:syslog?appname=bob&local=7" or "logger:stdout?json=true"
+  --loglevel="info"             Only log messages with the given severity or above. Valid levels: [debug, info, warn, error]
+  --logformat="text"            Set the log format. Valid formats: [text, json]
 ```
 
 Tested with syslog-ng 3.5.6, 3.20.1, and 3.22.1

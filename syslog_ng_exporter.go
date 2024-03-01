@@ -26,6 +26,7 @@ const (
 var (
 	app              = kingpin.New("syslog_ng_exporter", "A Syslog-NG exporter for Prometheus")
 	slogLevel        = app.Flag("loglevel", "Log level (debug, info, warn, error)").Default("info").String()
+	slogFormat       = app.Flag("logformat", "Log format (json, text)").Default("text").String()
 	showVersion      = app.Flag("version", "Print version information.").Bool()
 	listeningAddress = app.Flag("telemetry.address", "Address on which to expose metrics.").Default(":9577").String()
 	metricsEndpoint  = app.Flag("telemetry.endpoint", "Path under which to expose metrics.").Default("/metrics").String()
@@ -254,7 +255,17 @@ func main() {
 		slog.Error("Invalid log level", "error", err)
 		os.Exit(1)
 	}
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel}))
+
+	var logger *slog.Logger
+	switch *slogFormat {
+	case "json":
+		logger = slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel}))
+	case "text":
+		logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel}))
+	default:
+		slog.Error("Invalid log format", "format", *slogFormat)
+		os.Exit(1)
+	}
 	slog.SetDefault(logger)
 
 	exporter := NewExporter(*socketPath)
