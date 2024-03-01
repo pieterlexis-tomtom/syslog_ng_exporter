@@ -12,8 +12,6 @@
 # limitations under the License.
 
 GO       := go
-PROMU    := $(GOPATH)/bin/promu
-GOVENDOR := $(GOPATH)/bin/govendor
 pkgs     = $(shell $(GO) list ./... | grep -v /vendor/)
 
 PREFIX                  ?= $(shell pwd)
@@ -39,14 +37,13 @@ vet:
 	@echo ">> vetting code"
 	@$(GO) vet $(pkgs)
 
-build: govendor promu
+build:
 	@echo ">> building binaries"
-	@$(GOVENDOR) fetch +out
-	@$(PROMU) build --prefix $(PREFIX)
+	@$(GO) build
 
 tarball: build
 	@echo ">> building release tarball"
-	@$(PROMU) tarball --prefix $(PREFIX) $(BIN_DIR)
+	@$(GO) tarball --prefix $(PREFIX) $(BIN_DIR)
 
 docker: build
 	@echo ">> building docker image"
@@ -57,9 +54,4 @@ promu:
 		GOARCH=$(subst x86_64,amd64,$(patsubst i%86,386,$(shell uname -m))) \
 		$(GO) get -u github.com/prometheus/promu
 
-govendor:
-	@GOOS=$(shell uname -s | tr A-Z a-z) \
-		GOARCH=$(subst x86_64,amd64,$(patsubst i%86,386,$(shell uname -m))) \
-		$(GO) get -u github.com/kardianos/govendor
-
-.PHONY: all style format build test vet tarball docker promu govendor
+.PHONY: all style format build test vet tarball docker promu

@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -13,7 +15,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -24,6 +25,7 @@ const (
 
 var (
 	app              = kingpin.New("syslog_ng_exporter", "A Syslog-NG exporter for Prometheus")
+	slogLevel        = app.Flag("loglevel", "Log level (debug, info, warn, error)").Default("info").String()
 	showVersion      = app.Flag("version", "Print version information.").Bool()
 	listeningAddress = app.Flag("telemetry.address", "Address on which to expose metrics.").Default(":9577").String()
 	metricsEndpoint  = app.Flag("telemetry.endpoint", "Path under which to expose metrics.").Default("/metrics").String()
@@ -114,7 +116,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 	if err := e.collect(ch); err != nil {
-		log.Errorf("Error scraping syslog-ng: %s", err)
+		slog.Error("Error scraping syslog-ng", "error", err)
 		e.scrapeFailures.Inc()
 		e.scrapeFailures.Collect(ch)
 	}
@@ -153,17 +155,17 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 		line, err := buff.ReadString('\n')
 
 		if err != nil || line[0] == '.' {
-			log.Debug("Reached end of STATS output")
+			slog.Debug("Reached end of STATS output")
 			break
 		}
 
 		stat, err := parseStatLine(line)
 		if err != nil {
-			log.Debugf("Skipping STATS line: %v", err)
+			slog.Debug("Skipping STATS line", "line", line, "error", err)
 			continue
 		}
 
-		log.Debugf("Successfully parsed STATS line: %v", stat)
+		slog.Debug("Successfully parsed STATS line", "stats", stat)
 
 		switch stat.objectType[0:4] {
 		case "src.":
@@ -217,8 +219,22 @@ func parseStatLine(line string) (Stat, error) {
 	return stat, nil
 }
 
+func parseLogLevel(in string) (slog.Level, error) {
+	switch in {
+	case "debug":
+		return slog.LevelDebug, nil
+	case "info":
+		return slog.LevelInfo, nil
+	case "warn":
+		return slog.LevelWarn, nil
+	case "error":
+		return slog.LevelError, nil
+	default:
+		return slog.LevelInfo, errors.New("Invalid log level")
+	}
+}
+
 func main() {
-	log.AddFlags(app)
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	if *showVersion {
@@ -226,13 +242,19 @@ func main() {
 		os.Exit(0)
 	}
 
+	logLevel, err := parseLogLevel(*slogLevel)
+	if err != nil {
+		slog.Error("Invalid log level", "error", err)
+		os.Exit(1)
+	}
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel}))
+	slog.SetDefault(logger)
+
 	exporter := NewExporter(*socketPath)
 	prometheus.MustRegister(exporter)
 	prometheus.MustRegister(version.NewCollector("syslog_ng_exporter"))
 
-	log.Infoln("Starting syslog_ng_exporter", version.Info())
-	log.Infoln("Build context", version.BuildContext())
-	log.Infof("Starting server: %s", *listeningAddress)
+	slog.Info("Starting syslog_ng_exporter", "version", version.Info(), "buildContext", version.BuildContext(), "listeningAddress", *listeningAddress, "metricsEndpoint", *metricsEndpoint)
 
 	http.Handle(*metricsEndpoint, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -244,8 +266,12 @@ func main() {
 			</body>
 			</html>`))
 		if err != nil {
-			log.Warnf("Failed sending response: %v", err)
+			slog.Warn("Failed sending response", "error", err)
 		}
 	})
-	log.Fatal(http.ListenAndServe(*listeningAddress, nil))
+	err = (http.ListenAndServe(*listeningAddress, nil))
+	if err != nil {
+		slog.Error("Failed to start HTTP server", "error", err)
+		os.Exit(1)
+	}
 }
